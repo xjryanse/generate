@@ -16,7 +16,12 @@ class GenerateTemplateService extends Base implements MainModelInterface {
 
     use \xjryanse\traits\InstTrait;
     use \xjryanse\traits\MainModelTrait;
+    use \xjryanse\traits\MainModelRamTrait;
+    use \xjryanse\traits\MainModelCacheTrait;
+    use \xjryanse\traits\MainModelCheckTrait;
+    use \xjryanse\traits\MainModelGroupTrait;
     use \xjryanse\traits\MainModelQueryTrait;
+
 
     protected static $mainModel;
     protected static $mainModelClass = '\\xjryanse\\generate\\model\\GenerateTemplate';
@@ -55,6 +60,15 @@ class GenerateTemplateService extends Base implements MainModelInterface {
         // $templateProcessor = $PHPWord->loadTemplate($path['template_id']['file_path']);
         //获取模板字段
         $fields = GenerateTemplateFieldService::getTemplateFields($this->uuid);
+        // 20231019:未配置的字段默认为text
+        $keys = array_keys($data);
+        $hasFieldKeys = array_column($fields, 'field_name');
+        foreach($keys as $k){
+            if(!in_array($k, $hasFieldKeys) && !is_array($data[$k])){
+                $fields[] = ['field_name'=>$k,'field_type'=>'text'];
+            }
+        }
+
         foreach ($fields as $key => $value) {
             //文本
             if ($value['field_type'] == 'text') {
@@ -177,6 +191,9 @@ class GenerateTemplateService extends Base implements MainModelInterface {
         return $this->getFFieldValue(__FUNCTION__);
     }
 
+    public function fFileName() {
+        return $this->getFFieldValue(__FUNCTION__);
+    }    
     /**
      * 培训id
      */

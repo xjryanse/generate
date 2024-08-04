@@ -7,6 +7,7 @@ use xjryanse\curl\Query;
 use xjryanse\system\service\SystemFileService;
 use xjryanse\system\logic\FileLogic;
 use xjryanse\system\logic\ExportLogic;
+use xjryanse\system\service\columnlist\Dynenum;
 use xjryanse\logic\Pdf;
 use xjryanse\logic\Debug;
 use xjryanse\logic\Arrays;
@@ -20,7 +21,12 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
 
     use \xjryanse\traits\InstTrait;
     use \xjryanse\traits\MainModelTrait;
+    use \xjryanse\traits\MainModelRamTrait;
+    use \xjryanse\traits\MainModelCacheTrait;
+    use \xjryanse\traits\MainModelCheckTrait;
+    use \xjryanse\traits\MainModelGroupTrait;
     use \xjryanse\traits\MainModelQueryTrait;
+
 
     protected static $mainModel;
     protected static $mainModelClass = '\\xjryanse\\generate\\model\\GenerateTemplateLog';
@@ -29,7 +35,7 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
      * pdf转url
      * @var type 
      */
-    protected static $pdfCovUrl = "https://office.xiesemi.cn/index.php/word/toPdf";
+    protected static $pdfCovUrl = "http://office.xiesemi.cn/index.php/word/toPdf";
 
     /**
      * word文档，生成pdf
@@ -54,22 +60,21 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
             // 20230519：文件路径替换
             $urlFull = SystemFileService::mainModel()->getFullPath($res['file_path']);
             // 20231006调试
-            if(Debug::isDevIp()){
-                dump($res['file_path']);
-
-                $phpWord = new \PhpOffice\PhpWord\PhpWord();
-                // 加载 Word 文档
-                $phpWord->loadTemplate($res['file_path']);
-
-                // 创建 PDF 导出器
-                $pdfWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'PDF');
-
-                // 导出为 PDF 文件
-                $pdfWriter->save('./test20231006.pdf');
-                exit;
-                
-            }
-            
+//            if(Debug::isDevIp()){
+//                dump($res['file_path']);
+//
+//                $phpWord = new \PhpOffice\PhpWord\PhpWord();
+//                // 加载 Word 文档
+//                $phpWord->loadTemplate($res['file_path']);
+//
+//                // 创建 PDF 导出器
+//                $pdfWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'PDF');
+//
+//                // 导出为 PDF 文件
+//                $pdfWriter->save('./test20231006.pdf');
+//                exit;
+//                
+//            }
             
             //word 转为pdf 
             $url = urlencode($urlFull);
@@ -133,11 +138,13 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
         if (Debug::isDebug()) {
             exit;
         }
-        $rr = ExportLogic::writeToExcel($dataImport, $path['excel_start_row'], $templatePath, '', $replace);
-        $filePath = str_replace('./', '/', $rr);
+        $startRow           = Arrays::value($path, 'excel_start_row', 0);
+
+        $rr                 = ExportLogic::writeToExcel($dataImport, $startRow, $templatePath, '', $replace);
+        $filePath           = str_replace('./', '/', $rr);
         // http会被谷歌浏览器拦截无法下载
-        $res['file_path'] = Request::domain() . $filePath;
-        $res['pathRaw'] = $rr;
+        $res['file_path']   = Request::domain() . $filePath;
+        $res['pathRaw']     = $rr;
 
         return $res;
     }
@@ -166,8 +173,18 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
      */
 
     protected static function dataCov($templateId, $data, $withTitle = false, $withLabel = false) {
-        //$res = GenerateTemplateService::getInstance($templateId)->generate($data);
-        $fields = GenerateTemplateFieldService::getTemplateFields($templateId);
+        // 20240406加
+        $dynArrs        = GenerateTemplateFieldService::dynArrs($templateId); 
+        // dump($dynArrs);exit;
+        $dynDataList    = Dynenum::dynDataList($data, $dynArrs);
+
+        foreach($dynArrs as $k=>$v){
+            foreach($data as &$it){
+                $it[$k] = Arrays::value($dynDataList[$k], $it[$k]) ?: $it[$k];
+            }
+        }
+        
+        $fields     = GenerateTemplateFieldService::getTemplateFields($templateId);
         $sumFields = GenerateTemplateFieldService::sumFields($templateId);
 
         $dataTitle = array_column($fields, 'field_name', 'label');
@@ -185,8 +202,13 @@ class GenerateTemplateLogService extends Base implements MainModelInterface {
         if ($withTitle) {
             $dataImport[] = $dataTitle;
         }
-        foreach ($data as &$v) {
+        foreach ($data as $k=>&$v) {
+            // 20240301
+            $v['i'] = $k + 1;
             $tmp = [];
+            // 20231229:序号专用
+            // $tmp['i'] = $k + 1;
+            
             foreach ($dataTitle as $k => &$title) {
                 $tmp[$k] = Arrays::value($v, $title, '');
             }

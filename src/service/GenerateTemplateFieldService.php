@@ -11,7 +11,12 @@ class GenerateTemplateFieldService extends Base implements MainModelInterface {
 
     use \xjryanse\traits\InstTrait;
     use \xjryanse\traits\MainModelTrait;
+    use \xjryanse\traits\MainModelRamTrait;
+    use \xjryanse\traits\MainModelCacheTrait;
+    use \xjryanse\traits\MainModelCheckTrait;
+    use \xjryanse\traits\MainModelGroupTrait;
     use \xjryanse\traits\MainModelQueryTrait;
+
     use \xjryanse\traits\StaticModelTrait;
 
     protected static $mainModel;
@@ -27,6 +32,19 @@ class GenerateTemplateFieldService extends Base implements MainModelInterface {
         // 20230608
         $con[] = ['status', '=', 1];
         return self::staticConList($con);
+    }
+    
+    /**
+     * 20240406：获取动态枚举配置
+     * @param type $templateId
+     * 'user_id'    =>'table_name=w_user&key=id&value=username'
+     * 'goods_id'   =>'table_name=w_goods&key=id&value=goods_name'
+     */
+    public static function dynArrs($templateId) {
+        $con[] = ['template_id', '=', $templateId];
+        $con[] = ['field_type', '=', 'dynenum'];
+        $lists = self::staticConList($con);
+        return array_column($lists, 'option', 'field_name');
     }
 
     /**
